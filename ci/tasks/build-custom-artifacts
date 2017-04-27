@@ -28,4 +28,29 @@ pushd "${release_dir}" > /dev/null
   ./scripts/build "${output_dir}"
 popd > /dev/null
 
-cp "${release_dir}/docker-prod/Dockerfile" "${output_dir}/"
+if [[ -n $HTTP_PROXY ]]; then
+    http_proxy=$HTTP_PROXY
+fi
+if [[ -n $HTTPS_PROXY ]]; then
+    https_proxy=$HTTPS_PROXY
+elif [[ -n $https_proxy ]]; then
+    https_proxy=$http_proxy
+fi
+if [[ -n $NO_PROXY ]]; then
+    no_proxy=$NO_PROXY
+fi
+
+cat << ---EOF > ${output_dir}/Dockerfile
+FROM alpine:latest
+
+$([[ -n $http_proxy ]] && echo "ENV http_proxy $http_proxy")
+$([[ -n $https_proxy ]] && echo "ENV https_proxy $https_proxy")
+$([[ -n $no_proxy ]] && echo "ENV no_proxy $no_proxy")
+
+RUN apk update && \
+    apk add ca-certificates git bash
+
+COPY terraform/* /usr/local/bin/
+COPY check in out /opt/resource/
+---EOF
+
